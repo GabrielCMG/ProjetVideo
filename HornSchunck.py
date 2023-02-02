@@ -1,55 +1,42 @@
-#!/usr/bin/env python
-"""
-examples:
-
-./HornSchunck.py data/box/box
-./HornSchunck.py data/office/office
-./HornSchunck.py data/rubic/rubic
-./HornSchunck.py data/sphere/sphere
-
-"""
-from __future__ import division
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.ndimage.filters import convolve as filter2
 import cv2
 
-FILTER = 7
-QUIVER = 5
-
 
 def HS(im1, im2, alpha, Niter):
     """
-    im1: image at t=0
-    im2: image at t=1
-    alpha: regularization constant
-    Niter: number of iteration
+    Fonction implémentant la méthode de flot optique proposée par B.K.P. Horn et B.G. Schunck.
+
+    :param im1: image à t
+    :param im2: image à t+dt
+    :param alpha: constante de régularisation
+    :param Niter: nombre d'itérations
+    :return: flot optique
     """
 
-    # set up initial velocities
+    # Initialisation de la vitesse
     uInitial = np.zeros([im1.shape[0], im1.shape[1]])
     vInitial = np.zeros([im1.shape[0], im1.shape[1]])
 
-    # Set initial value for the flow vectors
+    # Initialisation des vecteurs de flot optique
     U = uInitial
     V = vInitial
 
-    # Estimate derivatives
+    # Estimation des dérivées
     [fx, fy, ft] = computeDerivatives(im1, im2)
 
-    # Averaging kernel
+    # Noyau de moyennage
     kernel = np.array([[1 / 12, 1 / 6, 1 / 12],
                        [1 / 6, 0, 1 / 6],
                        [1 / 12, 1 / 6, 1 / 12]], float)
 
-    # Iteration to reduce error
+    # Itérations pour réduire l'erreur
     for _ in range(Niter):
-        # %% Compute local averages of the flow vectors
+        # Calcul de la moyenne locale des vecteurs de flot
         uAvg = filter2(U, kernel)
         vAvg = filter2(V, kernel)
-        # %% common part of update step
         der = (fx * uAvg + fy * vAvg + ft) / (alpha ** 2 + fx ** 2 + fy ** 2)
-        # %% iterative step
         U = uAvg - fx * der
         V = vAvg - fy * der
 
@@ -57,11 +44,16 @@ def HS(im1, im2, alpha, Niter):
 
 
 def computeDerivatives(im1, im2):
-    # %% build kernels for calculating derivatives
-    kernelX = np.array([[-1, 1],
-                        [-1, 1]]) * .25  # kernel for computing d/dx
-    kernelY = np.array([[-1, -1],
-                        [1, 1]]) * .25  # kernel for computing d/dy
+    """
+    Fonction calculant les dérivées de l'image (en x, en y et en t)
+
+    :param im1: image à t
+    :param im2: image à t+dt
+    :return: dérivées de l'image
+    """
+    # Construction des noyaux pour calculer les dérivées
+    kernelX = np.array([[-1, 1], [-1, 1]]) * .25  # Noyau pour calculer d/dx
+    kernelY = np.array([[-1, -1], [1, 1]]) * .25  # Noyau pour calculer d/dy
     kernelT = np.ones((2, 2)) * .25
 
     fx = filter2(im1, kernelX) + filter2(im2, kernelX)
@@ -74,31 +66,36 @@ def computeDerivatives(im1, im2):
 
 
 cap = cv2.VideoCapture(0)
-
-ret, old_frame = cap.read()
+_, old_frame = cap.read()
 
 while 1:
     ret, frame = cap.read()
     if not ret:
         print('No frames grabbed!')
         break
+
     old_frame_gray = cv2.cvtColor(old_frame, cv2.COLOR_BGR2GRAY)
     frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-    # calculate optical flow
-    U, V = HS(old_frame_gray, frame_gray, 0.1, 10)
+    # Calcul du flot optique
+    U, V = HS(old_frame_gray, frame_gray, 10, 20)
 
     M = np.sqrt(U ** 2 + V ** 2)
+    M = 10*np.log10(M)
 
-    plt.imshow(10*np.log10(M))
+    th = np.quantile(M, 0.99)
+    M[M <= th] = 0
 
+    plt.clf()
+    plt.imshow(M)
+    plt.colorbar()
     plt.pause(0.001)
 
     k = 0xff
     if k == 27:
         break
 
-    # Now update the previous frame and previous points
+    # Mise à jour de l'image de l'itération précédente
     old_frame = frame.copy()
 
 cv2.destroyAllWindows()
