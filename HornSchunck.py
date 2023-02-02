@@ -66,7 +66,6 @@ def computeDerivatives(im1, im2):
 
 
 cap = cv2.VideoCapture(0)
-cap = cv2.VideoCapture(cv2.samples.findFile("Poubelle/vtest3.mp4"))
 _, old_frame = cap.read()
 
 while 1:
