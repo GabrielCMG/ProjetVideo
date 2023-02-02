@@ -1,6 +1,6 @@
 import numpy as np
 from matplotlib import pyplot as plt
-from scipy.ndimage.filters import convolve as filter2
+from scipy.ndimage import convolve as filter2
 import cv2
 
 
@@ -36,7 +36,7 @@ def HS(im1, im2, alpha, Niter):
         # Calcul de la moyenne locale des vecteurs de flot
         uAvg = filter2(U, kernel)
         vAvg = filter2(V, kernel)
-        der = (fx * uAvg + fy * vAvg + ft) / (alpha ** 2 + fx ** 2 + fy ** 2)
+        der = (fx * uAvg + fy * vAvg + ft) / (4*alpha ** 2 + fx ** 2 + fy ** 2)
         U = uAvg - fx * der
         V = vAvg - fy * der
 
@@ -60,12 +60,13 @@ def computeDerivatives(im1, im2):
     fy = filter2(im1, kernelY) + filter2(im2, kernelY)
 
     # ft = im2 - im1
-    ft = filter2(im1, kernelT) + filter2(im2, -kernelT)
+    ft = filter2(im1, -kernelT) + filter2(im2, kernelT)
 
     return fx, fy, ft
 
 
 cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(cv2.samples.findFile("Poubelle/vtest3.mp4"))
 _, old_frame = cap.read()
 
 while 1:
@@ -78,13 +79,13 @@ while 1:
     frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
     # Calcul du flot optique
-    U, V = HS(old_frame_gray, frame_gray, 10, 20)
+    U, V = HS(old_frame_gray, frame_gray, 15, 20)
 
     M = np.sqrt(U ** 2 + V ** 2)
     M = 10*np.log10(M)
 
-    th = np.quantile(M, 0.99)
-    M[M <= th] = 0
+    # th = np.quantile(M, 0.99)
+    # M[M <= th] = 0
 
     plt.clf()
     plt.imshow(M)
